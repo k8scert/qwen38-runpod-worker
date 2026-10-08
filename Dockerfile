@@ -5,7 +5,9 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
-    MODEL_PATH=/models/Qwen3.8-27B-ABLITERATED-Q8_0.gguf \
+    MODEL_REPO=k8scert/Qwen3.8-27B-ABLITERATED-Q8_0 \
+    MODEL_FILE=Qwen3.8-27B-ABLITERATED-Q8_0.gguf \
+    RUNPOD_MODEL_CACHE_DIR=/runpod-volume/huggingface-cache/hub \
     CTX_SIZE=32768 \
     PARALLEL=1 \
     GPU_LAYERS=999 \
