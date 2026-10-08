@@ -29,6 +29,6 @@ jobs:
           context: .
           push: true
           tags: |
-            k8scert/qwen38-runpod-worker:p13b-v1
+            k8scert/qwen38-runpod-worker:p13b-v2
           cache-from: type=gha
           cache-to: type=gha,mode=max
