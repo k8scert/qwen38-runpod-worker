@@ -70,7 +70,8 @@ if [ "${MODEL_SIZE}" -lt 1000000000 ]; then
     exit 13
 fi
 
-/app/llama-server     --model "${MODEL_PATH}"     --host 127.0.0.1     --port "${LLAMA_PORT}"     --ctx-size "${CTX_SIZE}"     --parallel "${PARALLEL}"     --n-gpu-layers "${GPU_LAYERS}"     --flash-attn on &
+/app/llama-server     --model "${MODEL_PATH}"     --host 127.0.0.1     --port "${LLAMA_PORT}"     --ctx-size "${CTX_SIZE}"     --parallel "${PARALLEL}"     --n-gpu-layers "${GPU_LAYERS}"     --flash-attn on \
+    --reasoning off &
 
 LLAMA_PID=$!
 
