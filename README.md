@@ -18,7 +18,7 @@ This repository is intentionally separate from the frozen P1-P19 deployment pack
 - Model repo: `k8scert/Qwen3.8-27B-ABLITERATED-Q8_0`
 - Model file: `Qwen3.8-27B-ABLITERATED-Q8_0.gguf`
 - Initial context: 32K
-- Initial concurrency: 1
+- Worker concurrency follows `PARALLEL` by default; override with `WORKER_CONCURRENCY` if needed
 - GPU target: 48GB class
 - Model file is **not baked into the image**.
 
@@ -45,7 +45,7 @@ Every build publishes both:
 
 - Flash Attention: on
 - Context: 32768
-- Parallel slots: 1
+- Parallel slots: controlled by `PARALLEL` (A40 concurrency validation currently targeting 8)
 - GPU layers: 999
 - Batch: 2048
 - Micro-batch: 512
@@ -54,3 +54,15 @@ Every build publishes both:
 - Reasoning budget: 0
 
 These values are the current A40 validation baseline and must be benchmarked before being treated as universal defaults.
+
+
+## Runpod per-worker concurrency
+
+The worker handler is asynchronous and uses `aiohttp`, so a single Runpod worker can keep multiple queue jobs in flight while llama.cpp uses its parallel slots.
+
+- `PARALLEL` controls llama.cpp slot count.
+- `WORKER_CONCURRENCY` controls Runpod jobs accepted concurrently by one worker.
+- If `WORKER_CONCURRENCY` is not set, it follows `PARALLEL`.
+- Worker concurrency is capped at `PARALLEL` to avoid feeding more simultaneous jobs than llama.cpp has slots.
+
+For the current A40 stress test, set `PARALLEL=8` and leave `WORKER_CONCURRENCY` unset (or explicitly set it to 8).
