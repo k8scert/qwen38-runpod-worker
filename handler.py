@@ -85,11 +85,11 @@ def handler(job):
             return
 
         # llama-server emits OpenAI-compatible SSE lines.
-        for raw_line in response.iter_lines(decode_unicode=True):
+        for raw_line in response.iter_lines(decode_unicode=False):
             if not raw_line:
                 continue
 
-            line = raw_line.strip()
+            line = raw_line.decode("utf-8", errors="replace").strip()
 
             if not line.startswith("data:"):
                 continue
