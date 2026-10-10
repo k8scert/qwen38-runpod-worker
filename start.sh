@@ -77,6 +77,10 @@ if [ "${MODEL_SIZE}" -lt 1000000000 ]; then
 fi
 
 /app/llama-server     --model "${MODEL_PATH}"     --host 127.0.0.1     --port "${LLAMA_PORT}"     --ctx-size "${CTX_SIZE}"     --parallel "${PARALLEL}"     --n-gpu-layers "${GPU_LAYERS}"     --flash-attn on \
+    --batch-size "${BATCH_SIZE}" \
+    --ubatch-size "${UBATCH_SIZE}" \
+    --threads "${THREADS}" \
+    --threads-batch "${THREADS}" \
     --reasoning off \
     --reasoning-budget 0 &
 
