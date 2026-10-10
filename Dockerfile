@@ -13,8 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GPU_LAYERS=999 \
     LLAMA_PORT=8080 \
     STARTUP_TIMEOUT=900 \
-    REQUEST_TIMEOUT=900 \\
-    WORKER_CONCURRENCY=1
+    REQUEST_TIMEOUT=900
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
