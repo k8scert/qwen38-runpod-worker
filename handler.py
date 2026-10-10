@@ -20,6 +20,7 @@ ALLOWED_FIELDS = {
     "presence_penalty",
     "frequency_penalty",
     "response_format",
+    "chat_template_kwargs",
 }
 
 def handler(job):
