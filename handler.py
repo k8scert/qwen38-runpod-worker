@@ -2,11 +2,19 @@ import json
 import os
 import time
 
-import requests
+import aiohttp
 import runpod
 
 LLAMA_URL = os.getenv("LLAMA_URL", "http://127.0.0.1:8080")
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "900"))
+PARALLEL = max(1, int(os.getenv("PARALLEL", "1")))
+WORKER_CONCURRENCY = max(
+    1,
+    min(
+        int(os.getenv("WORKER_CONCURRENCY", str(PARALLEL))),
+        PARALLEL,
+    ),
+)
 
 ALLOWED_FIELDS = {
     "messages",
@@ -26,7 +34,7 @@ ALLOWED_FIELDS = {
 }
 
 
-def handler(job):
+async def handler(job):
     payload = job.get("input") or {}
 
     if not isinstance(payload, dict):
@@ -45,83 +53,90 @@ def handler(job):
     body["stream"] = wants_stream
 
     started = time.time()
+    timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
 
     try:
-        response = requests.post(
-            f"{LLAMA_URL}/v1/chat/completions",
-            json=body,
-            timeout=REQUEST_TIMEOUT,
-            stream=wants_stream,
-        )
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                f"{LLAMA_URL}/v1/chat/completions",
+                json=body,
+            ) as response:
+                if response.status < 200 or response.status >= 300:
+                    raw = await response.text()
+                    try:
+                        details = json.loads(raw)
+                    except json.JSONDecodeError:
+                        details = {"raw": raw}
 
-        if not response.ok:
-            try:
-                details = response.json()
-            except ValueError:
-                details = {"raw": response.text}
+                    yield {
+                        "error": "llama-server request failed",
+                        "status_code": response.status,
+                        "details": details,
+                    }
+                    return
 
-            yield {
-                "error": "llama-server request failed",
-                "status_code": response.status_code,
-                "details": details,
-            }
-            return
+                if not wants_stream:
+                    raw = await response.text()
+                    try:
+                        data = json.loads(raw)
+                    except json.JSONDecodeError:
+                        yield {
+                            "error": "invalid llama-server JSON",
+                            "raw": raw,
+                        }
+                        return
 
-        if not wants_stream:
-            try:
-                data = response.json()
-            except ValueError:
-                yield {
-                    "error": "invalid llama-server JSON",
-                    "raw": response.text,
-                }
-                return
+                    yield {
+                        "ok": True,
+                        "elapsed_seconds": round(time.time() - started, 3),
+                        "response": data,
+                    }
+                    return
 
-            yield {
-                "ok": True,
-                "elapsed_seconds": round(time.time() - started, 3),
-                "response": data,
-            }
-            return
+                # llama-server emits OpenAI-compatible SSE lines.
+                # aiohttp StreamReader iteration is line-oriented here, so multiple
+                # concurrent jobs can await network I/O without blocking the worker loop.
+                async for raw_line in response.content:
+                    if not raw_line:
+                        continue
 
-        # llama-server emits OpenAI-compatible SSE lines.
-        for raw_line in response.iter_lines(decode_unicode=False):
-            if not raw_line:
-                continue
+                    line = raw_line.decode("utf-8", errors="replace").strip()
 
-            line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data:"):
+                        continue
 
-            if not line.startswith("data:"):
-                continue
+                    data_text = line[5:].strip()
 
-            data_text = line[5:].strip()
+                    if data_text == "[DONE]":
+                        yield {"done": True}
+                        return
 
-            if data_text == "[DONE]":
+                    try:
+                        chunk = json.loads(data_text)
+                    except json.JSONDecodeError:
+                        continue
+
+                    yield {"chunk": chunk}
+
                 yield {"done": True}
-                return
 
-            try:
-                chunk = json.loads(data_text)
-            except json.JSONDecodeError:
-                continue
-
-            yield {
-                "chunk": chunk,
-            }
-
-        yield {"done": True}
-
-    except requests.RequestException as exc:
+    except (aiohttp.ClientError, TimeoutError) as exc:
         yield {
             "error": "llama-server unavailable",
             "details": str(exc),
         }
 
 
+def concurrency_modifier(_current_concurrency):
+    return WORKER_CONCURRENCY
+
+
 if __name__ == "__main__":
+    print(f"RUNPOD_WORKER_CONCURRENCY={WORKER_CONCURRENCY}", flush=True)
     runpod.serverless.start(
         {
             "handler": handler,
+            "concurrency_modifier": concurrency_modifier,
             "return_aggregate_stream": True,
         }
     )
