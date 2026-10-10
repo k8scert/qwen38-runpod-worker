@@ -11,6 +11,9 @@ PARALLEL="${PARALLEL:-1}"
 GPU_LAYERS="${GPU_LAYERS:-999}"
 LLAMA_PORT="${LLAMA_PORT:-8080}"
 STARTUP_TIMEOUT="${STARTUP_TIMEOUT:-900}"
+BATCH_SIZE="${BATCH_SIZE:-2048}"
+UBATCH_SIZE="${UBATCH_SIZE:-512}"
+THREADS="${THREADS:-8}"
 
 echo "========================================"
 echo " P13B RUNPOD WORKER START"
@@ -21,6 +24,9 @@ echo "CTX_SIZE=${CTX_SIZE}"
 echo "PARALLEL=${PARALLEL}"
 echo "GPU_LAYERS=${GPU_LAYERS}"
 echo "LLAMA_PORT=${LLAMA_PORT}"
+echo "BATCH_SIZE=${BATCH_SIZE}"
+echo "UBATCH_SIZE=${UBATCH_SIZE}"
+echo "THREADS=${THREADS}"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi || true
