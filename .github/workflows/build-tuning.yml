@@ -19,6 +19,8 @@ jobs:
         run: |
           bash -n tuning/start.sh
           python3 -m py_compile tuning/handler.py
+          python3 -m pip install --quiet aiohttp
+          python3 -m unittest discover -s tuning -p 'test_*.py'
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
