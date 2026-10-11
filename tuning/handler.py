@@ -149,7 +149,7 @@ async def diagnostics(payload):
     if os.getenv("P13B_DIAGNOSTICS", "0") != "1" or (expected and (not isinstance(supplied, str) or not hmac.compare_digest(expected, supplied))):
         yield {"error": "diagnostics unauthorized"}
         return
-    result = {"configured_env": {key: os.environ.get(key) for key in (
+    result = {"candidate_version": os.getenv("P13B_CANDIDATE_VERSION", "unknown"), "configured_env": {key: os.environ.get(key) for key in (
         "CTX_SIZE", "PARALLEL", "WORKER_CONCURRENCY", "GPU_LAYERS", "BATCH_SIZE",
         "UBATCH_SIZE", "THREADS", "KV_UNIFIED", "KV_UNIFIED_PER_SLOT", "CACHE_IDLE_SLOTS",
         "CACHE_TYPE_K", "CACHE_TYPE_V", "FLASH_ATTN", "CONT_BATCHING", "CACHE_RAM_MIB"
@@ -184,6 +184,9 @@ async def diagnostics(payload):
         output, _ = await asyncio.wait_for(process.communicate(), 10)
         result["gpu"] = output.decode().strip() if process.returncode == 0 else "unavailable"
     except Exception as exc:
+        if "process" in locals() and process.returncode is None:
+            process.kill()
+            await process.wait()
         result["gpu"] = type(exc).__name__
     yield {"ok": True, "diagnostics": result}
 
