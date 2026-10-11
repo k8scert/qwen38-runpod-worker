@@ -1,0 +1,36 @@
+name: Build isolated developer tools
+on:
+  push:
+    branches: [main]
+    paths: ['developer/**', '.github/workflows/build-developer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: developer-image
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and test actual isolated image
+        run: |
+          docker build -f developer/Dockerfile -t agent-tools:test .
+          docker run --rm --read-only --tmpfs /tmp:rw,size=64m --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 256m --cpus 1 --entrypoint python agent-tools:test -m unittest test_tools
+          docker run --rm --read-only --entrypoint python agent-tools:test -I -c 'import httpx,requests,pytest,fastapi,pydantic; print("LIBRARY_IMPORTS_PASS")'
+          docker run --rm --read-only --entrypoint npm agent-tools:test --version
+      - name: Publish immutable tools image
+        run: |
+          docker tag agent-tools:test k8scert/p13b-agent-tools:dev-${GITHUB_SHA}
+          docker push k8scert/p13b-agent-tools:dev-${GITHUB_SHA}
+          docker inspect agent-tools:test --format '{{json .RepoDigests}}' > developer-image.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: developer-image
+          path: developer-image.json
