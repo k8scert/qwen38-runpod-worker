@@ -1,0 +1,35 @@
+name: Build preserved-engine parameter controls
+on:
+  push:
+    branches: [main]
+    paths: ['preserved-tuning/**', 'tuning/start.sh', 'baseline-diagnostics/handler.py', '.github/workflows/build-preserved-tuning.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build immutable diagnostic image with preserved declared engine
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: preserved-tuning/Dockerfile
+          push: true
+          tags: k8scert/qwen38-runpod-worker:a40-preserved-tune-${{ github.sha }}
+      - name: Record diagnostic image digest
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: printf '%s\n' "${IMAGE_DIGEST}" | tee preserved-tuning-image.txt >> "${GITHUB_STEP_SUMMARY}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preserved-tuning-image
+          path: preserved-tuning-image.txt
