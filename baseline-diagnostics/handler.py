@@ -217,6 +217,21 @@ async def diagnostics(payload):
             version_process.kill()
             await version_process.wait()
         result["llama_version_error"] = type(exc).__name__
+    try:
+        import hashlib
+        from pathlib import Path
+        model_path = os.getenv("MODEL_PATH")
+        if model_path:
+            model = Path(model_path)
+            with model.open("rb") as file:
+                header = file.read(1048576)
+            result["model_file_bytes"] = model.stat().st_size
+            result["model_header_sha256"] = hashlib.sha256(header).hexdigest()
+            result["model_fingerprint_scope"] = "first 1 MiB only; not a full-file hash"
+            parts = model.parts
+            if "snapshots" in parts:
+                result["model_snapshot_revision"] = parts[parts.index("snapshots") + 1]
+    except Exception as exc: result["model_fingerprint_error"] = type(exc).__name__
     yield {"ok": True, "diagnostics": result}
 
 
