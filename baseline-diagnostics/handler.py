@@ -198,7 +198,7 @@ async def diagnostics(payload):
                     "--cont-batching", "--no-cont-batching", "--jinja", "--no-jinja"}
         for directory in Path("/proc").iterdir():
             if not directory.name.isdigit(): continue
-            try: args = (directory / "cmdline").read_bytes().decode(errors="replace").split("\\0")
+            try: args = (directory / "cmdline").read_bytes().decode(errors="replace").split(chr(0))
             except (OSError, PermissionError): continue
             if not args or Path(args[0]).name != "llama-server": continue
             result["actual_requested_args"] = {arg: args[i+1] for i,arg in enumerate(args[:-1]) if arg in flags}
