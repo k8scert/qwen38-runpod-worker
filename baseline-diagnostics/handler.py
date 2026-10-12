@@ -179,11 +179,12 @@ async def diagnostics(payload):
                 result["token_count"] = len(data.get("tokens", []))
     try:
         process = await asyncio.create_subprocess_exec(
-            "nvidia-smi", "--query-gpu=name,memory.total,memory.used,utilization.gpu,clocks.sm,clocks.mem,power.draw,power.limit",
+            "nvidia-smi", "--query-gpu=name,memory.total,memory.used,utilization.gpu,clocks.sm,clocks.mem,power.draw,power.limit,uuid,driver_version,pstate,temperature.gpu",
             "--format=csv,noheader,nounits", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
         output, _ = await asyncio.wait_for(process.communicate(), 10)
         result["gpu"] = output.decode().strip() if process.returncode == 0 else "unavailable"
+        result["gpu_csv_fields"] = ["name","memory_total_mib","memory_used_mib","utilization_pct","sm_clock_mhz","memory_clock_mhz","power_w","power_limit_w","uuid","driver_version","pstate","temperature_c"]
     except Exception as exc:
         if "process" in locals() and process.returncode is None:
             process.kill()
